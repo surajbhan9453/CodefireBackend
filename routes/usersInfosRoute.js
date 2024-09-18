@@ -24,8 +24,10 @@ userRouter.delete('/delete/:id',userController.deleteUser)
 userRouter.get('/testing/:id/:name',userController.testing)
 
 //Report Routers
-userRouter.get('/router',userController.userperday)
-
+userRouter.get('/report1',userController.userperday)
+userRouter.get('/report2',userController.totalWorkingHr)
+userRouter.get('/report3',userController.attNotExist)
+userRouter.get('/report4',userController.maxDaysPresent)
 
 module.exports=userRouter
 

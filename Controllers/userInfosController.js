@@ -1,5 +1,7 @@
 const db = require('../Models')
 const { Op } = require('sequelize');
+const { Sequelize } = require('sequelize');
+const moment=require('moment');
 
 
 // main models
@@ -137,6 +139,17 @@ const addUser_att = async (req, res) => {
       start_time: req.body.start_time,
       end_time: req.body.end_time,
     }
+    var startTime = moment(info.start_time, 'HH:mm:ss');
+    var endTime = moment(info.end_time, 'HH:mm:ss');
+    
+    // calculate total duration
+    var duration1 = moment.duration(endTime.diff(startTime));
+    var hours = parseInt(duration1.asHours());
+    // console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    // console.log(hours)
+    // console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
+if(hours>0){
     
 let existingAtt= await User_attendence.findOne({where:{
   [Op.and]:[{user_id:id},{date_only: info.date_only}]
@@ -150,7 +163,11 @@ if(existingAtt){
     })
     res.status(200).send(attendence)
     console.log(attendence)
-  } catch (err) {
+  } else{
+    return res.status(500).json({ message: "Given Time is not valid" })
+
+  }}
+  catch (err) {
     console.error(err)
     res.status(500).json({ message: "Error occurred while adding user attendance." })
   }
@@ -159,6 +176,7 @@ if(existingAtt){
 //Testing Raw Queries
 
 const { QueryTypes } = require('sequelize');
+const { required } = require('joi');
 const usersAll =async(req,res)=>{
 
  users= await sequelize.query('SELECT * FROM `users`', {
@@ -242,7 +260,7 @@ const allAttendenceByName = async (req, res) => {
           
         };
       });    
-      res.status(200).json({message:transformedData});
+      res.status(200).json(transformedData);
     }
    catch (err) {
     console.error(err)
@@ -282,7 +300,7 @@ const getattenByuser = async (req, res) => {
       
       where: {id:id}
     })
-    res.status(200).json({message:data})
+    res.status(200).json({data})
   } catch (err) {
     console.error(err)
     res.status(500).send('Error occurred while fetching attendance by user.')
@@ -319,27 +337,132 @@ const testing=async(req,res)=>{
 
 //Report 1 user perday hrs.
 
-const userperday=async(req,res)=>{
-try{
-  const data=await Users.findAll({
-    include:{
-      model:User_attendence,
-      as: "UserAttendences",
-      attributes:['date_only',[sequalize.fn(time_format(timediff(sequalize.col(end_time),sequalize.col(att.start_time)),"%h")),'Working_Hrs']]
+const userperday = async (req, res) => {
+  try {
+    const data = await Users.findAll({
+      include: {
+        model: User_attendence,
+        as: "userAttendences",
+        attributes: [
+          'date_only',
+          [Sequelize.fn('TIME_FORMAT', 
+            Sequelize.fn('TIMEDIFF', Sequelize.col('userAttendences.end_time'), Sequelize.col('userAttendences.start_time')), 
+            '%hhr : %imin'
+          ), 'Working_Hrs']
+        ]
+      },
+      attributes: ['name'],
+      order: [['name', 'ASC']]
+    });
+    const transformedData = data.flatMap(record => {
+      const { name, userAttendences } = record.toJSON();
 
-    },
-    attributes:['name'],
-    order:[
-      "name", "desc"
-    ]
+      // Flatten the userAttendences with the name included
+      return userAttendences.map(attendance => ({
+        date_only: attendance.date_only,
+        Working_Hrs: attendance.Working_Hrs,
+        name: name
+      }));
+    });
+    res.status(200).json( transformedData );
+  } catch (err) {
+    res.status(500).json({ message: err});
+  }
+};
 
-  })
-  res.status(200).json({message:data})
 
-}catch(err){
-  res.status(500).json({message:err})
-}
-}
+
+//Report 2
+const totalWorkingHr = async (req, res) => {
+  try {
+    const data = await Users.findAll({
+      attributes: [
+        'id',
+        'name',
+        [Sequelize.fn('SUM', Sequelize.fn('TIME_TO_SEC', Sequelize.fn('TIMEDIFF', Sequelize.col('userAttendences.end_time'), Sequelize.col('userAttendences.start_time')))), 'total_Working_Hrs']
+      ],
+      
+      include: {
+        model: User_attendence,
+        as: 'userAttendences',
+        attributes: []
+      },
+      group: ['usersInfos.id', 'usersInfos.name']
+    });
+
+    const transformedData = data.map(record => {
+      const { id, name, total_Working_Hrs } = record.toJSON();
+      const hours = Math.floor(total_Working_Hrs / 3600);
+      const minutes = Math.floor((total_Working_Hrs % 3600) / 60);
+      return {
+        id,
+        name,
+        total_Working_Hrs: `${hours}hr : ${minutes}min`
+      };
+    });
+
+    res.status(200).json(transformedData);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+//Report 3
+const attNotExist = async (req, res) => {
+  try {
+    const data = await Users.findAll({
+      
+      include: {
+        model: User_attendence,
+        as: 'userAttendences',
+        attributes: [],
+        required: false,
+        
+       
+      },
+      where:{ "$userAttendences.user_id$":{[Op.eq]:null}}
+      
+      
+    });
+    res.status(200).json(data);
+  }catch(err){
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+//Report 4
+const maxDaysPresent = async (req, res) => {
+  try {
+    const data = await Users.findAll({ 
+      attributes:['name',
+        [Sequelize.fn('COUNT',Sequelize.col('userAttendences.user_id')),'Max_day_present']
+
+      ],
+      
+      include: {
+        model: User_attendence,
+        as: 'userAttendences',
+        attributes: [],
+        
+        
+       
+      },
+      order:[['Max_day_present','DESC']],
+      group:['id'],
+      subQuery: false,
+      limit:4
+     
+     
+     
+    });
+    res.status(200).json(data);
+  }catch(err){
+    res.status(500).json({ message: err.message });
+  }
+};
 
 
 
@@ -374,6 +497,10 @@ module.exports = {
 
 
   //Reports Routes
-  userperday
+  userperday,
+  totalWorkingHr,
+  attNotExist,
+  maxDaysPresent,
+
 
 }
