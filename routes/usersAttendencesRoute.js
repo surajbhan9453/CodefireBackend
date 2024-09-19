@@ -12,12 +12,15 @@ userAttRouter.get('/search/:id',userController.getoneuser_att)
 
 userAttRouter.get('/view/',userController.allAttendenceByName)
 
+userAttRouter.get('/searchByNameId/',userController.attByname)
+
 
 userAttRouter.post('/create/:id',userController.addUser_att)
 
 userAttRouter.put('/update/:id',userController.updateUser_att)
 
 userAttRouter.delete('/delete/:id',userController.deleteUser_att)
+
 
 //testing the routes
 userAttRouter.get('/testing/:id/:name',userController.testing)

@@ -7,9 +7,7 @@ userRouter.get('/view/',userController.getallUsers)
 // router.get('/users/findanother/:id',userController.findeanother)
 userRouter.get('/view/:id',userController.getoneuser)
 
-userRouter.get('/getattenByuser/:id',userController.getattenByuser)
-
-userRouter.get('/searchByName/:name',userController.usersByname)
+userRouter.get('/searchByName/',userController.usersByname)
 
 userRouter.get('/usersAll/',userController.usersAll)
 

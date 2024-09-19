@@ -64,14 +64,19 @@ const getoneuser = async (req, res) => {
 //getting all users by name
 const usersByname=async(req,res)=>{
   try{
-    let name=req.params.name
-    let users=await Users.findAll({where:{name:name}})
+    let name=req.query.name
+    let id=req.query.id
+    let users=await Users.findAll({where:{[Op.and]:[{name:{[Op.like]:`%${name}%`}},{id:{[Op.like]:`%${id}%`}}]}})
     res.status(200).send(users)
   }
   catch(err){
-    es.status(500).send('Error occurred while fetching the user by id.')
+    res.status(500).json(err)
   }
 }
+
+
+
+
 
 // updating users
 const updateUser = async (req, res) => {
@@ -197,6 +202,97 @@ const getallUsers_att = async (req, res) => {
   }
 }
 
+
+// Relationship Association
+//all user's name waise attendences 
+const allAttendenceByName = async (req, res) => {
+ 
+  try {    
+    let q=req.query.q   
+
+   if(q){    
+    const data = await User_attendence.findAll({
+      include: [{
+        model: Users,  
+        as: "usersInfos",
+        attributes: ['name'], 
+        where: { [Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]}   
+      }],
+      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+      order:[['date_only', 'DESC']],  
+     
+      
+    });
+    const combineData = data.map(record => {
+      const { usersInfos, ...attendence } = record.toJSON(); 
+      return {
+        ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+      };
+    });    
+    res.status(200).json(combineData);
+  }
+  else{    
+    const data = await User_attendence.findAll({
+      include: [{
+        model: Users,  
+        as: "usersInfos",
+        attributes: ['name'], 
+        where: { name: { [Op.not]: null } } 
+      }],
+      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+      order:[
+        ['date_only', 'DESC']
+      ],     
+      
+    });
+    const combineData = data.map(record => {
+      const { usersInfos, ...attendence } = record.toJSON(); 
+      return {
+        ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+      };
+    });    
+    res.status(200).json(combineData);
+  }
+
+}
+ catch (err) {
+  console.error(err)
+  res.status(500).json({message:'Error occurred while fetching attendance by user.'})
+}
+}
+
+
+//Getting user attendances by name or id 
+const attByname=async(req,res)=>{
+  try{
+    let name=req.query.name
+    let user_id=req.query.id
+    if(name!=null && id!=null)
+    {
+    let users=await User_attendence.findAll({where:{[Op.and]:[{name:{[Op.like]:`%${name}%`}},{user_id:{[Op.like]:`%${user_id}%`}}]}})
+    res.status(200).send(users)
+    }
+    else if((name==null||name=="") && user_id!=null){
+      let users=await User_attendence.findAll({where:{user_id:{[Op.like]:`%${user_id}%`}}})
+    res.status(200).send(users)
+    }
+    else if(name!=null && user_id==null){
+      let users=await User_attendence.findAll({where:{name:{[Op.like]:`%${name}%`}}})
+    res.status(200).send(users)
+    }
+    else{
+      res.status(500).json("id or name is not given")
+
+    }
+  }
+  catch(err){
+    res.status(500).json(err)
+  }
+}
+
+
 // getting one User_attendences
 const getoneuser_att = async (req, res) => {
   try {
@@ -233,40 +329,6 @@ const deleteUser_att = async (req, res) => {
   }
 }
 
-// Relationship Association
-//all user's name waise attendences 
-const allAttendenceByName = async (req, res) => {
- 
-    try {
-      
-      const data = await User_attendence.findAll({
-        include: [{
-          model: Users,  
-          as: "usersInfos",
-          attributes: ['name'], 
-          where: { name: { [Op.not]: null } } 
-        }],
-        attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-        order:[
-          ['date_only', 'DESC']
-        ],
-       
-        
-      });
-      const transformedData = data.map(record => {
-        const { usersInfos, ...attendence } = record.toJSON(); 
-        return {
-          ...attendence, name: usersInfos ? usersInfos.name : null  
-          
-        };
-      });    
-      res.status(200).json(transformedData);
-    }
-   catch (err) {
-    console.error(err)
-    res.status(500).json({message:'Error occurred while fetching attendance by user.'})
-  }
-}
 
 
 
@@ -483,6 +545,7 @@ module.exports = {
   getoneuser_att,
   updateUser_att,
   deleteUser_att,
+  attByname,
 
   //Raw Queries Export
   usersAll,
