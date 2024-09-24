@@ -39,6 +39,7 @@ db.sequalize= sequalize
 
 db.usersInfos=require('./usersInfos.js')(sequalize,DataTypes)
 db.userAttendences=require('./userAttendences.js')(sequalize,DataTypes)
+// db.userAuth = require('./userAuth.js')(sequalize,DataTypes)
 // db.usersInfos.associate(db);
 // db.userAttendences.associate(db);
 

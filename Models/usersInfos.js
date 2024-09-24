@@ -30,6 +30,16 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      email:{
+        type: DataTypes.STRING,
+        validate:{
+          isEmail: true,
+        }},
+
+      password:{
+          type: DataTypes.STRING,
+          
+      }
       
     });
     usersInfos.associate = function(models){

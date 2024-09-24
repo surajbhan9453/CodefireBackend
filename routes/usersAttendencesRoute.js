@@ -12,8 +12,11 @@ userAttRouter.get('/search/:id',userController.getoneuser_att)
 
 userAttRouter.get('/view/',userController.allAttendenceByName)
 
+userAttRouter.get('/search/',userController.allAttendenceSearch)
+
 userAttRouter.get('/searchByNameId/',userController.attByname)
 
+userAttRouter.get('/filter/',userController.filterAtt)
 
 userAttRouter.post('/create/:id',userController.addUser_att)
 

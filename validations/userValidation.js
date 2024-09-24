@@ -1,4 +1,5 @@
 const Joi=require('joi');
+const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 const userValidation=Joi.object({
     
@@ -13,7 +14,18 @@ const userValidation=Joi.object({
     }),
     phoneNumber:Joi.string().regex(/^[0-9]{10}$/).required().messages({
         'string.pattern.base' : 'Phone number must have 10 digits.'
-    })
+    }),
+  
+    email: Joi.string().email().required().messages({
+        'string.email': 'Invalid Email',
+        'string.empty': 'Email Required',
+      }),
+    password: Joi.string().min(8).regex(passwordRegex).required().messages({
+        'string.empty': 'Password Required',
+        'string.min': 'Password must be 8 digit',
+        'string.pattern.base': 'PASSWORD_ALPHANUMERIC_VALIDATION'
+      }),
+    
 })
 
 

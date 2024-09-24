@@ -2,6 +2,9 @@ const db = require('../Models')
 const { Op } = require('sequelize');
 const { Sequelize } = require('sequelize');
 const moment=require('moment');
+const bcrypt=require('bcrypt');
+const jwt=require('jsonwebtoken')
+require('dotenv').config()
 
 
 // main models
@@ -12,23 +15,39 @@ const Users = db.usersInfos
 // adding user
 const addUser = async (req, res) => {
   try {
+    let password=req.body.password
     let info = {
       name: req.body.name,
       address: req.body.address,
       phoneNumber: req.body.phoneNumber,
+      email:req.body.email,
+      password:await bcrypt.hash(password, 10)
+
     }
-    let existingUser = await Users.findOne({ where: { phoneNumber: info.phoneNumber } });
+    let existingUser = await Users.findOne({ where: { [Op.or]:[{phoneNumber: info.phoneNumber },{email:info.email}] }});
     if(existingUser){
-      return res.status(500).send("This User's Phone Number is already exist")
+      return res.status(500).send("This User is already exist")
      
     }
     const users = await Users.create(info)
+
+
+    if(users){
+      let token=jwt.sign({id:users.id},process.env.JWT_KEY,{
+        expiresIn:"1h",
+      })
+      res.cookie("jwt", token, { maxAge: 1 * 24 * 60 * 60, httpOnly: true });
+      console.log("user", JSON.stringify(users, null, 2));
+      console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+      console.log(token);
+      console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    }
     res.status(200).send(users)
     console.log(users)
   } catch (err) {
     console.error(err)
     res.status(500).send('Error occurred while adding user.')
-  }
+  }null
 }
 
 // getting all users
@@ -36,6 +55,9 @@ const getallUsers = async (req, res) => {
   
   try {
     let users = await Users.findAll({
+      attributes:{
+        exclude:['password']
+      },
       order:[
         ['id', 'DESC']
       ]
@@ -49,11 +71,67 @@ const getallUsers = async (req, res) => {
   }
 }
 
+
+//Login 
+const login=async(req,res)=>{
+  try{
+    let email=req.body.email;
+    let password=req.body.password;
+    const user=await Users.findOne({
+      where:{email:email}
+    })
+    if(user){
+      const isSame=await bcrypt.compare(password,user.password)
+    console.log(isSame)
+    if(isSame){
+    let token=jwt.sign({id:user.id},process.env.JWT_KEY,{
+      expiresIn: "4h",
+    })
+    res.cookie("jwt", token, { maxAge: 1 * 24 * 60 * 60, httpOnly: true });
+       console.log("user", JSON.stringify(user, null, 2));
+       console.log(token);
+       
+       res.json({ msg: "ok", token: token });
+     } else {
+       return res.status(409).send("Wrong Password");
+     }
+   } else {
+     return res.status(401).json({msg:"Invalid User email"});
+   }
+  }
+  catch(err){
+    res.status(500).json(err)
+  }
+  }
+
+
+
+  //Verify login user
+  const verifying=async(req,res)=>{
+    try{
+    res.json({ message: 'Welcome to the Verified user ',user:req.user });}
+    catch(err){
+      res.status(400).json({msg:err});
+    }
+  }
+  //Logout 
+
+  const logout=async(req,res)=>{
+    try{
+      res.cookie("jwt","", { maxAge: 0, httpOnly: true });
+    res.json({ message: 'User Logged out', });}
+    catch(err){
+      res.status(400).json({msg:err});
+    }
+  }
+
 // getting one user
 const getoneuser = async (req, res) => {
   try {
     let id = req.params.id
-    let oneuser = await Users.findOne({ where:{ id:id} })
+    let oneuser = await Users.findOne({attributes:{
+      exclude:['password']
+    }, where:{ id:id} })
     res.status(200).send(oneuser)
   } catch (err) {
     console.error(err)
@@ -66,13 +144,17 @@ const usersByname=async(req,res)=>{
   try{
     let name=req.query.name
     let id=req.query.id
-    let users=await Users.findAll({where:{[Op.and]:[{name:{[Op.like]:`%${name}%`}},{id:{[Op.like]:`%${id}%`}}]}})
+    let users=await Users.findAll({attributes:{
+      exclude:['password']
+    },where:{[Op.or]:[{name:{[Op.like]:`%${name}%`}},{id:{[Op.like]:`%${id}%`}}]}})
     res.status(200).send(users)
   }
   catch(err){
     res.status(500).json(err)
   }
 }
+
+
 
 
 
@@ -182,6 +264,7 @@ if(existingAtt){
 
 const { QueryTypes } = require('sequelize');
 const { required } = require('joi');
+const { password } = require('../Config/dbConfig');
 const usersAll =async(req,res)=>{
 
  users= await sequelize.query('SELECT * FROM `users`', {
@@ -208,8 +291,60 @@ const getallUsers_att = async (req, res) => {
 const allAttendenceByName = async (req, res) => {
  
   try {    
-    let q=req.query.q   
+    
+    
+    const data = await User_attendence.findAll({
+      include: [{
+        model: Users,  
+        as: "usersInfos",
+        attributes: ['name'], 
+        where: { name: { [Op.not]: null } } 
+      }],
+      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+      order:[['id', 'ASC']], 
+      
+          
+      
+    });
+    const combineData = data.map(record => {
+      const { usersInfos, ...attendence } = record.toJSON(); 
+      return {
+        ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+      };
+    });    
+    res.status(200).json(combineData);
+  }
 
+
+ catch (err) {
+  console.error(err)
+  res.status(500).json({message:'Error occurred while fetching attendance by user.'})
+}
+}
+
+
+
+//Searching and Pagination 
+
+const allAttendenceSearch = async (req, res) => {
+ 
+  try {    
+    let q=req.query.q  
+    let page=0
+    let order=req.query.order
+    // if('%' in q){
+    //   res.status(200).json({error:'can not use %'});
+    // }
+
+    if(req.query.page){
+      page=parseInt(req.query.page)-1;
+    }
+    let limit=80
+    if(req.query.limit){
+      limit=parseInt(req.query.limit)
+    }
+    let offset=page*limit
    if(q){    
     const data = await User_attendence.findAll({
       include: [{
@@ -219,9 +354,10 @@ const allAttendenceByName = async (req, res) => {
         where: { [Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]}   
       }],
       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[['date_only', 'DESC']],  
+      order:[['id', 'ASC']],
+      limit:limit,
+      offset:offset  
      
-      
     });
     const combineData = data.map(record => {
       const { usersInfos, ...attendence } = record.toJSON(); 
@@ -241,9 +377,10 @@ const allAttendenceByName = async (req, res) => {
         where: { name: { [Op.not]: null } } 
       }],
       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[
-        ['date_only', 'DESC']
-      ],     
+      order:[['id', 'ASC']], 
+      limit:limit,
+      offset:offset  
+          
       
     });
     const combineData = data.map(record => {
@@ -264,10 +401,96 @@ const allAttendenceByName = async (req, res) => {
 }
 
 
+
+//Filter the attendanaces
+const filterAtt = async (req, res) => {
+ 
+  try {    
+    let filter=req.query.search || {};
+    let startTime=filter.startTime?filter.startTime.split(','):null
+    let userids=filter.user_id ? filter.user_id.split(',').map(Number):null
+    let ids=filter.id ? filter.id.split(',').map(Number):null
+    let names=filter.name? filter.name.split(','):null
+    let dates=filter.date? filter.date.split(','):null
+
+    let order = req.query.order || {};
+    // console.log(">>>>>>>>>>>>>>>>>"+order)
+    let orderKey = Object.keys(order)[0] || 'id'; 
+    // console.log(">>>>>>>>>>>>>>>>>"+orderKey)
+    let orderValue = order[orderKey] || 'ASC';
+    // console.log(">>>>>>>>>>>>>>>>>"+orderValue)
+    let whereCondition={};
+    if(ids)
+    {
+      whereCondition.id={[Op.in]:ids};
+
+    }
+    if(userids)
+    {
+      whereCondition.user_id={[Op.in]:userids};
+    }
+    let userCondition={}
+    if(names){
+      userCondition.name={[Op.in]:names};
+    }
+    if(startTime){
+      whereCondition.start_time={[Op.in]:startTime}
+    }
+    
+    if(dates){
+      whereCondition.date_only={[Op.in]:dates};
+      whereCondition.start_time={[Op.in]:dates};
+    }
+    
+    
+    const data = await User_attendence.findAll({
+      include: [{
+        model: Users,  
+        as: "usersInfos",
+        attributes: ['name'], 
+        where: { 
+          ...userCondition,
+          } 
+      }],
+      where: {
+        ...whereCondition,
+        
+      },
+      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+      order:[[orderKey, orderValue]], 
+      
+          
+      
+    });
+    const combineData = data.map(record => {
+      const { usersInfos, ...attendence } = record.toJSON(); 
+      return {
+        ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+      };
+    });    
+    res.status(200).json(combineData);
+  }
+
+
+ catch (err) {
+  console.error(err)
+  res.status(500).json({message:'Error occurred while fetching attendance by user.'})
+}
+}
+
+
+
+
+
+
+
+
+
 //Getting user attendances by name or id 
 const attByname=async(req,res)=>{
   try{
-    let name=req.query.name
+    let name=req.query.name ||{}
     let user_id=req.query.id
     if(name!=null && id!=null)
     {
@@ -546,6 +769,7 @@ module.exports = {
   updateUser_att,
   deleteUser_att,
   attByname,
+  filterAtt,
 
   //Raw Queries Export
   usersAll,
@@ -564,6 +788,10 @@ module.exports = {
   totalWorkingHr,
   attNotExist,
   maxDaysPresent,
+  allAttendenceSearch,
+  login,
+  verifying,
+  logout
 
 
 }

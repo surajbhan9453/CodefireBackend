@@ -2,6 +2,7 @@ const userController=require('../Controllers/userInfosController')
 const userRouter=require('express').Router()
 const apiValidator=require('../middleware/validatorMid')
 const {userValidation}=require('../validations/userValidation')
+const {userAuth}=require('../middleware/userAuthentication')
 
 userRouter.get('/view/',userController.getallUsers)
 // router.get('/users/findanother/:id',userController.findeanother)
@@ -12,6 +13,12 @@ userRouter.get('/searchByName/',userController.usersByname)
 userRouter.get('/usersAll/',userController.usersAll)
 
 userRouter.post('/create',apiValidator(userValidation),userController.addUser)
+
+userRouter.post('/login',userController.login)
+
+userRouter.post('/logout',userController.logout)
+
+userRouter.post('/selft-user',userAuth,userController.verifying)
 
 userRouter.put('/update/:id',userController.updateUser)
 
