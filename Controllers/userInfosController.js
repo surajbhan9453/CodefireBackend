@@ -9,6 +9,11 @@ require('dotenv').config()
 
 // main models
 const Users = db.usersInfos
+const User_attendence = db.userAttendences
+const roles=db.Roles
+const permissions=db.Permissions
+const userRoles=db.UserRoles
+const rolesPermissions=db.RolesPermissions
 
 // User Table
 // main work
@@ -26,7 +31,7 @@ const addUser = async (req, res) => {
     }
     let existingUser = await Users.findOne({ where: { [Op.or]:[{phoneNumber: info.phoneNumber },{email:info.email}] }});
     if(existingUser){
-      return res.status(500).send("This User is already exist")
+      return res.status(500).json({msg:"This User is already exist"})
      
     }
     const users = await Users.create(info)
@@ -91,16 +96,16 @@ const login=async(req,res)=>{
        console.log("user", JSON.stringify(user, null, 2));
        console.log(token);
        
-       res.json({ msg: "ok", token: token });
+       return res.json({ msg: "Login Successfully", token: token,email:user.email,password:user.password });
      } else {
-       return res.status(409).send("Wrong Password");
+       return res.status(409).json({msg:"Wrong Password"});
      }
    } else {
      return res.status(401).json({msg:"Invalid User email"});
    }
   }
   catch(err){
-    res.status(500).json(err)
+    return res.status(500).json({msg:err})
   }
   }
 
@@ -167,18 +172,29 @@ const updateUser = async (req, res) => {
     let info={
       name:req.body.name,
       address: req.body.address,
-        phoneNumber: req.body.phoneNumber
+        phoneNumber: req.body.phoneNumber,
+        email:req.body.email
 
     }
     let existingUser= await Users.findOne({
-      where:{phoneNumber:info.phoneNumber}
+      where:{[Op.or]:[{phoneNumber:info.phoneNumber},{email:info.email}]}
     })
     if(existingUser){
-      return res.status(400).json({error:'Error code copyRef',message:'This Phone number is already in use'})
-    }
+      if(existingUser.id==id){
+        const users = await Users.update(info, { where: { id: id } })
+        return res.status(200).send(`Data is updated of id=${id}`)
+        
+      }
+      else{
+        return res.status(400).json({error:'Error code copyRef',message:'This Phone number and email is already in use'})
+      }
 
+    }
     const users = await Users.update(info, { where: { id: id } })
-    res.status(200).send(`Data is updated of id=${id}`)
+        return res.status(200).send(`Data is updated of id=${id}`)
+    
+
+    
   } catch (err) {
     console.error(err)
     res.status(500).send('Error occurred while updating user.')
@@ -214,7 +230,7 @@ const findeanother = async (req, res) => {
 }
 
 // User's Attendances
-const User_attendence = db.userAttendences
+
 
 // adding user attendance
 const addUser_att = async (req, res) => {
@@ -276,67 +292,152 @@ const usersAll =async(req,res)=>{
 
 // getting all User_attendences
 const getallUsers_att = async (req, res) => {
-  try {
-    let attendence = await User_attendence.findAll({})
-    return res.status(200).send(attendence)
-  } catch (err) {
-    console.error(err)
-    res.status(500).send('Error occurred while fetching all attendances.')
-  }
+  // try {
+  //   let attendence = await User_attendence.findAll({})
+  //   return res.status(200).send(attendence)
+  // } catch (err) {
+  //   console.error(err)
+  //   res.status(500).send('Error occurred while fetching all attendances.')
+  // }
 }
 
 
 // Relationship Association
 //all user's name waise attendences 
-const allAttendenceByName = async (req, res) => {
+// const allAttendenceByName = async (req, res) => {
  
-  try {    
+//   try {    
+//     let q=req.query.q  
+//     let page=req.query.page|| 0
+//     if(req.query.page){
+//       page=parseInt(req.query.page)-1;
+//     }
+//     let limit=80
+//     if(req.query.limit){
+//       limit=parseInt(req.query.limit)
+//     }
+//     let offset=page*limit
+//     // let order=req.query.order
+//     // if('%' in q){
+//     //   res.status(200).json({error:'can not use %'});
+//     // }
+
+//     //filter
+//     let filter=req.query.filter || {};
+//     let startTime=filter.start_time?filter.start_time.split(','):null
+//     let userids=filter.user_id ? filter.user_id.split(',').map(Number):null
+//     let ids=filter.id ? filter.id.split(',').map(Number):null
+//     let names=filter.name? filter.name.split(','):null
+//     let dates=filter.date_only? filter.date_only.split(','):null
+
+//     let whereCondition={};   
+   
+//     if(ids)
+//     {
+//       whereCondition.id={[Op.in]:ids};
+
+//     }
+//     if(userids)
+//     {
+//       whereCondition.user_id={[Op.in]:userids};
+//       console.log
+//     }
+//     let userCondition={}
+//     if(names){
+//       userCondition.name={[Op.in]:names};
+//     }
+//     if(startTime){
+//       whereCondition.start_time={[Op.in]:startTime}
+//     }  
     
-    
-    const data = await User_attendence.findAll({
-      include: [{
-        model: Users,  
-        as: "usersInfos",
-        attributes: ['name'], 
-        where: { name: { [Op.not]: null } } 
-      }],
-      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[['id', 'ASC']], 
+//     if(dates){
+//       whereCondition.date_only={[Op.in]:dates};
+//       // whereCondition.start_time={[Op.in]:dates};
+//     }
+
+
+
+
+
+//   //order
+//     let order = req.query.order || {};
+//     // console.log(">>>>>>>>>>>>>>>>>"+order)
+//     let orderKey = Object.keys(order)[0] || 'id'; 
+//     // console.log(">>>>>>>>>>>>>>>>>"+orderKey)
+//     let orderValue = order[orderKey] || 'ASC';
+//     // console.log(">>>>>>>>>>>>>>>>>"+orderValue)
+
+
+
+
+
+   
+//    if(q){    
+//     const data = await User_attendence.findAll({
+//       include: [{
+//         model: Users,  
+//         as: "usersInfos",
+//         attributes: ['name'], 
+//         where: { [Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}],
+//         }   
+//       }],
       
+//       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+//       order:[[orderKey, orderKey]], 
+//       limit:limit,
+//       offset:offset  
+     
+//     });
+//     const combineData = data.map(record => {
+//       const { usersInfos, ...attendence } = record.toJSON(); 
+//       return {
+//         ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+//       };
+//     });    
+//     res.status(200).json(combineData);
+//   }
+//   else{    
+//     const data = await User_attendence.findAll({
+//       include: [{
+//         model: Users,  
+//         as: "usersInfos",
+//         attributes: ['name'], 
+//         where: { name: { [Op.not]: null } } 
+//       }],
+//       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+//       order:[["id", "asc"]], 
+//       limit:limit,
+//       offset:offset 
           
       
-    });
-    const combineData = data.map(record => {
-      const { usersInfos, ...attendence } = record.toJSON(); 
-      return {
-        ...attendence, name: usersInfos ? usersInfos.name : null  
+//     });
+//     const combineData = data.map(record => {
+//       const { usersInfos, ...attendence } = record.toJSON(); 
+//       return {
+//         ...attendence, name: usersInfos ? usersInfos.name : null  
         
-      };
-    });    
-    res.status(200).json(combineData);
-  }
+//       };
+//     });    
+//     res.status(200).json(combineData);
+//   }
+
+// }
+//  catch (err) {
+//   console.error(err)
+//   res.status(500).json({message:'Error occurred while fetching attendance by user.'})
+// }
+// }
 
 
- catch (err) {
-  console.error(err)
-  res.status(500).json({message:'Error occurred while fetching attendance by user.'})
-}
-}
 
 
 
-//Searching and Pagination 
-
-const allAttendenceSearch = async (req, res) => {
- 
+//Searching and Pagination &filtering and sorting
+const allAttendenceByName = async (req, res) => { 
   try {    
     let q=req.query.q  
-    let page=0
-    let order=req.query.order
-    // if('%' in q){
-    //   res.status(200).json({error:'can not use %'});
-    // }
-
+    let page=req.query.page|| 0
     if(req.query.page){
       page=parseInt(req.query.page)-1;
     }
@@ -345,20 +446,145 @@ const allAttendenceSearch = async (req, res) => {
       limit=parseInt(req.query.limit)
     }
     let offset=page*limit
-   if(q){    
-    const data = await User_attendence.findAll({
-      include: [{
-        model: Users,  
-        as: "usersInfos",
-        attributes: ['name'], 
-        where: { [Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]}   
-      }],
-      attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[['id', 'ASC']],
-      limit:limit,
-      offset:offset  
+    // let order=req.query.order
+    // if('%' in q){
+    //   res.status(200).json({error:'can not use %'});
+    // }
+
+    //filter
+    let filter=req.query.filter || {};
+    let startTime=filter.start_time?filter.start_time.split(','):null
+    let endTime=filter.end_time?filter.end_time.split(','):null
+    let userids=filter.user_id ? filter.user_id.split(',').map(Number):null
+    let ids=filter.id ? filter.id.split(',').map(Number):null
+    let names=filter.name? filter.name.split(','):null
+    let dates=filter.date_only? filter.date_only.split(','):null
+
+    let whereCondition={};   
+   
+    if(ids)
+    {
+      whereCondition.id={[Op.in]:ids};
+
+    }
+    if(userids)
+    {
+      whereCondition.user_id={[Op.in]:userids};
+      console.log
+    }
+    let userCondition={}
+    if(names){
+      userCondition.name={[Op.in]:names};
+    }
+    if(startTime){
+      whereCondition.start_time={[Op.in]:startTime}
+    }  
+    
+    if(dates){
+      whereCondition.date_only={[Op.in]:dates};
+      // whereCondition.start_time={[Op.in]:dates};
+    }
+    if(endTime){
+      whereCondition.end_time={[Op.in]:endTime}
+    }
+
+
+
+
+
+  //order
+    let order = req.query.order || {};
+    // console.log(">>>>>>>>>>>>>>>>>"+order)
+    let orderKey = Object.keys(order)[0] || 'id'; 
+    // console.log(">>>>>>>>>>>>>>>>>"+orderKey)
+    let orderValue = order[orderKey] || 'ASC';
+    // console.log(">>>>>>>>>>>>>>>>>"+orderValue)
+
+    let orderArray = [];
+    if (orderKey === 'name') {
+      
+      orderArray.push([{ model: Users, as: 'usersInfos' }, 'name', orderValue]);
+      // console.log('>>>>>>>>>>>>',orderArray)  [ [ { model: usersInfos, as: 'usersInfos' }, 'name', 'desc' ] ]
+    } else {
      
-    });
+      orderArray.push([orderKey, orderValue]);
+    }
+
+
+
+
+
+   
+   if(q&&filter){    
+    const data = await User_attendence.findAll({
+            include: [{
+              model: Users,  
+              as: "usersInfos",
+              attributes: ['name'], 
+              where: {[Op.or]:[
+                {[Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]},{...userCondition,}] }   
+            }],
+            attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+            where:{ ...whereCondition},
+            order:orderArray,
+            limit:limit,
+            offset:offset  
+           
+          });
+          const combineData = data.map(record => {
+            const { usersInfos, ...attendence } = record.toJSON(); 
+            return {
+              ...attendence, name: usersInfos ? usersInfos.name : null  
+              
+            };
+          });    
+          res.status(200).json(combineData);    
+}
+else if(q){
+  const data = await User_attendence.findAll({
+    include: [{
+      model: Users,  
+      as: "usersInfos",
+      attributes: ['name'], 
+      where: {[Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]}   
+    }],
+    attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+    
+    order:orderArray, 
+    limit:limit,
+    offset:offset  
+   
+  });
+  const combineData = data.map(record => {
+    const { usersInfos, ...attendence } = record.toJSON(); 
+    return {
+      ...attendence, name: usersInfos ? usersInfos.name : null  
+      
+    };
+  });    
+  res.status(200).json(combineData);  
+
+}
+else if(filter){
+  const data = await User_attendence.findAll({
+    include: [{
+      model: Users,  
+      as: "usersInfos",
+      attributes: ['name'], 
+      where: { 
+        ...userCondition,
+        } ,
+        
+    }],
+    where: {
+      ...whereCondition,
+     
+      
+    },
+    limit:limit,
+    offset:offset  ,
+    attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+    order:orderArray, });
     const combineData = data.map(record => {
       const { usersInfos, ...attendence } = record.toJSON(); 
       return {
@@ -367,7 +593,7 @@ const allAttendenceSearch = async (req, res) => {
       };
     });    
     res.status(200).json(combineData);
-  }
+}
   else{    
     const data = await User_attendence.findAll({
       include: [{
@@ -377,10 +603,9 @@ const allAttendenceSearch = async (req, res) => {
         where: { name: { [Op.not]: null } } 
       }],
       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[['id', 'ASC']], 
+      order:orderArray, 
       limit:limit,
-      offset:offset  
-          
+      offset:offset        
       
     });
     const combineData = data.map(record => {
@@ -402,16 +627,97 @@ const allAttendenceSearch = async (req, res) => {
 
 
 
+
+
+
+
+// const allAttendenceSearch = async (req, res) => {
+ 
+//   try {    
+//     let q=req.query.q  
+//     let page=0
+//     let order=req.query.order
+//     // if('%' in q){
+//     //   res.status(200).json({error:'can not use %'});
+//     // }
+
+//     if(req.query.page){
+//       page=parseInt(req.query.page)-1;
+//     }
+//     let limit=80
+//     if(req.query.limit){
+//       limit=parseInt(req.query.limit)
+//     }
+//     let offset=page*limit
+//    if(q){    
+//     const data = await User_attendence.findAll({
+//       include: [{
+//         model: Users,  
+//         as: "usersInfos",
+//         attributes: ['name'], 
+//         where: { [Op.or]:[{id:{[Op.like]:`%${q}%`}},{name:{[Op.like]:`%${q}%`}},{"$userAttendences.date_only$":{[Op.like]:`%${q}%`}}]}   
+//       }],
+//       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+//       order:[['id', 'ASC']],
+//       limit:limit,
+//       offset:offset  
+     
+//     });
+//     const combineData = data.map(record => {
+//       const { usersInfos, ...attendence } = record.toJSON(); 
+//       return {
+//         ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+//       };
+//     });    
+//     res.status(200).json(combineData);
+//   }
+//   else{    
+//     const data = await User_attendence.findAll({
+//       include: [{
+//         model: Users,  
+//         as: "usersInfos",
+//         attributes: ['name'], 
+//         where: { name: { [Op.not]: null } } 
+//       }],
+//       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
+//       order:[['id', 'ASC']], 
+//       limit:limit,
+//       offset:offset  
+          
+      
+//     });
+//     const combineData = data.map(record => {
+//       const { usersInfos, ...attendence } = record.toJSON(); 
+//       return {
+//         ...attendence, name: usersInfos ? usersInfos.name : null  
+        
+//       };
+//     });    
+//     res.status(200).json(combineData);
+//   }
+
+// }
+//  catch (err) {
+//   console.error(err)
+//   res.status(500).json({message:'Error occurred while fetching attendance by user.'})
+// }
+// }
+
+
+
 //Filter the attendanaces
 const filterAtt = async (req, res) => {
  
   try {    
-    let filter=req.query.search || {};
-    let startTime=filter.startTime?filter.startTime.split(','):null
+    let filter=req.query.filter || {};
+    let startTime=filter.start_time?filter.start_time.split(','):null
     let userids=filter.user_id ? filter.user_id.split(',').map(Number):null
     let ids=filter.id ? filter.id.split(',').map(Number):null
     let names=filter.name? filter.name.split(','):null
-    let dates=filter.date? filter.date.split(','):null
+    let dates=filter.date_only? filter.date_only.split(','):null
+
+
 
     let order = req.query.order || {};
     // console.log(">>>>>>>>>>>>>>>>>"+order)
@@ -419,7 +725,9 @@ const filterAtt = async (req, res) => {
     // console.log(">>>>>>>>>>>>>>>>>"+orderKey)
     let orderValue = order[orderKey] || 'ASC';
     // console.log(">>>>>>>>>>>>>>>>>"+orderValue)
-    let whereCondition={};
+
+    let whereCondition={};   
+   
     if(ids)
     {
       whereCondition.id={[Op.in]:ids};
@@ -428,6 +736,7 @@ const filterAtt = async (req, res) => {
     if(userids)
     {
       whereCondition.user_id={[Op.in]:userids};
+      console.log
     }
     let userCondition={}
     if(names){
@@ -435,12 +744,23 @@ const filterAtt = async (req, res) => {
     }
     if(startTime){
       whereCondition.start_time={[Op.in]:startTime}
-    }
+    }  
     
     if(dates){
       whereCondition.date_only={[Op.in]:dates};
-      whereCondition.start_time={[Op.in]:dates};
+      // whereCondition.start_time={[Op.in]:dates};
     }
+    let orderArray = [];
+    if (orderKey === 'name') {
+      // Sort by the associated model's field (usersInfos.name)
+      orderArray.push([{ model: Users, as: 'usersInfos' }, 'name', orderValue]);
+      // console.log('>>>>>>>>>>>>',orderArray)  [ [ { model: usersInfos, as: 'usersInfos' }, 'name', 'desc' ] ]
+    } else {
+      // Sort by fields in the main table (User_attendence)
+      orderArray.push([orderKey, orderValue]);
+    }
+    
+
     
     
     const data = await User_attendence.findAll({
@@ -450,14 +770,15 @@ const filterAtt = async (req, res) => {
         attributes: ['name'], 
         where: { 
           ...userCondition,
-          } 
+          } ,
+          
       }],
       where: {
         ...whereCondition,
         
       },
       attributes: ['id', 'user_id', 'date_only', 'start_time', 'end_time'],
-      order:[[orderKey, orderValue]], 
+      order:orderArray, 
       
           
       
@@ -470,7 +791,10 @@ const filterAtt = async (req, res) => {
       };
     });    
     res.status(200).json(combineData);
+  
   }
+
+
 
 
  catch (err) {
@@ -717,6 +1041,29 @@ const attNotExist = async (req, res) => {
 };
 
 
+const avlAtt = async (req, res) => {
+  try {
+    const data = await Users.findAll({
+      attributes: ["id","name"],
+      include: {
+        model: User_attendence,
+        as: 'userAttendences',
+        attributes: [],
+        required: false,
+        
+       
+      },
+      where:{ "$userAttendences.user_id$":{[Op.ne]:null}}
+      
+      
+    });
+    res.status(200).json(data);
+  }catch(err){
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
 
 //Report 4
 const maxDaysPresent = async (req, res) => {
@@ -752,6 +1099,78 @@ const maxDaysPresent = async (req, res) => {
 
 
 
+
+
+//Access Control 
+
+const assignRoleToUser = async (req, res) => {
+  try {
+    let user_id=req.body.user_id
+    let role_id=req.body.role_id
+
+
+    const user = await Users.findByPk(user_id);
+    const role = await roles.findByPk(role_id);
+    if (!user || !role) {
+      return res.status(404).json({ message: 'User or Role not found' });
+    }
+    const existingrole= await userRoles.findOne({where:{[Op.and]:[{user_id:user_id},{role_id:role_id}]}});
+    
+    if(!existingrole){
+    // Add role to user (Many-to-Many relationship)
+    await user.addRole(role);
+
+    res.status(200).json({ message: 'Role assigned to user successfully' });
+  }else{
+    res.status(500).json({ message: 'This Role is already exist' });}
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning role', error });
+  }
+};
+
+
+
+const findRoleofusers = async (req, res) => {
+  try {     
+    const role = await userRoles.findAll({}); 
+    res.status(200).json({ message: role});
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning role', error });
+  }
+};
+
+const assignPermissionToRole=async(req,res)=>{
+  try{
+    const {permission_id,role_id}=req.body;
+    const permission=await permissions.findByPk(permission_id)
+    const role=await roles.findByPk(role_id)
+    if(!permission||!role){
+      return res.status(404).json({msg:"Invalid Permission or Role..."})
+    }
+    const existing=await rolesPermissions.findOne({where:{[Op.and]:[{role_id:role_id},{permission_id:permission_id}]}})
+    if(!existing){
+      await role.addPermission(permission);
+      res.status(200).json({ message: 'Permission assigned to Role successfully' });
+    }
+    else{
+      res.status(404).json({msg:'This Permission is already given to role'})
+    }
+
+  }catch(err){
+    res.status(500).json({msg:'Error ',err})
+
+  }
+};
+const findPermissontoroles = async (req, res) => {
+  try {     
+    const role = await rolesPermissions.findAll({}); 
+    res.status(200).json({ message: role});
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning role', error });
+  }
+};
+
+
 module.exports = {
   // users
   addUser,
@@ -761,6 +1180,7 @@ module.exports = {
   deleteUser,
   findeanother,
   usersByname,
+  // allAttendenceSearch,
 
   // user's attendance
   addUser_att,
@@ -788,10 +1208,17 @@ module.exports = {
   totalWorkingHr,
   attNotExist,
   maxDaysPresent,
-  allAttendenceSearch,
+  avlAtt,
+  // allAttendenceSearch,
   login,
   verifying,
-  logout
+  logout,
+
+  //Access Control
+  assignRoleToUser,
+  findRoleofusers,
+  assignPermissionToRole,
+  findPermissontoroles
 
 
 }

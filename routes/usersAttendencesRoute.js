@@ -11,8 +11,9 @@ userAttRouter.get('/search/:id',userController.getoneuser_att)
 
 
 userAttRouter.get('/view/',userController.allAttendenceByName)
+userAttRouter.get('/filter/',userController.filterAtt)
 
-userAttRouter.get('/search/',userController.allAttendenceSearch)
+// userAttRouter.get('/search/',userController.allAttendenceSearch)
 
 userAttRouter.get('/searchByNameId/',userController.attByname)
 

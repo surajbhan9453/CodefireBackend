@@ -23,16 +23,24 @@ userRouter.post('/selft-user',userAuth,userController.verifying)
 userRouter.put('/update/:id',userController.updateUser)
 
 userRouter.delete('/delete/:id',userController.deleteUser)
-
+//roles
+userRouter.post('/createrole',userController.assignRoleToUser)
+userRouter.get('/readrole',userController.findRoleofusers)
+userRouter.post('/createpermission',userController.assignPermissionToRole)
+userRouter.get('/readpermissions',userController.findPermissontoroles)
 
 //testing the routes
 userRouter.get('/testing/:id/:name',userController.testing)
+
 
 //Report Routers
 userRouter.get('/report1',userController.userperday)
 userRouter.get('/report2',userController.totalWorkingHr)
 userRouter.get('/report3',userController.attNotExist)
 userRouter.get('/report4',userController.maxDaysPresent)
+userRouter.get('/avlAtt',userController.avlAtt)
+
+
 
 module.exports=userRouter
 
